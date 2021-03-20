@@ -285,7 +285,7 @@ func (p *envoyExtAuthzGrpcServer) updatePolicy(body []byte) error {
 	if err := json.Unmarshal(body, &content); err != nil {
 		return err
 	}
-	if content["call_service"] != os.Getenv("POD_NAME") {
+	if content["call_service"] != os.Getenv("SERVICE_NAME") {
 		logrus.WithField("call_service", content["call_service"]).Error("Not my policy.")
 		return nil
 	}
