@@ -1,0 +1,11 @@
+plugins:
+  envoy_ext_authz_grpc:
+    addr: :9191
+    path: istio/authz/allow
+    amqpUrl: amqp://localhost:5672
+    exchangeName: test-exchange
+    exchangeType: fanout
+    routerKey: test-key
+    queueName: test-queue
+decision_logs:
+  console: true
