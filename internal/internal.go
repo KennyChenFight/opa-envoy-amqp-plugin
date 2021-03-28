@@ -111,11 +111,16 @@ func New(m *plugins.Manager, cfg *Config) plugins.Plugin {
 		URL:          cfg.AMQPUrl,
 		ErrorHandler: nil,
 	}
+
+	if os.Getenv("APPLICATION_NAME") == "" {
+		logrus.WithField("err", errors.New("env APPLICATION_NAME is empty")).Fatal("Unable to create amqpConsumer.")
+	}
+
 	queueConfig := &amqplib.AMQPQueueConfig{
 		ExchangeName:        cfg.ExchangeName,
 		ExchangeType:        amqplib.ExchangeType(cfg.ExchangeType),
 		AutoDeclareExchange: false,
-		QueueName:           cfg.QueueName,
+		QueueName:           os.Getenv("APPLICATION_NAME"),
 		RoutingKey:          cfg.RouterKey,
 		AutoDelete:          false,
 	}
@@ -167,7 +172,6 @@ type Config struct {
 	ExchangeName string `json:"exchangeName"`
 	ExchangeType string `json:"exchangeType"`
 	RouterKey    string `json:"routerKey"`
-	QueueName    string `json:"queueName"`
 }
 
 type envoyExtAuthzGrpcServer struct {
@@ -266,7 +270,7 @@ func (p *envoyExtAuthzGrpcServer) listen() {
 
 func (p *envoyExtAuthzGrpcServer) consume() {
 	logrus.WithFields(logrus.Fields{
-		"queueName": p.cfg.QueueName,
+		"queueName": os.Getenv("APPLICATION_NAME"),
 	}).Info("Starting amqp consumer")
 
 	for delivery := range p.amqpConsumer.Consume() {
