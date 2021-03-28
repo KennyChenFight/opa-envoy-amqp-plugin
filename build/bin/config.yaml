@@ -3,9 +3,8 @@ plugins:
     addr: :9191
     path: istio/authz/allow
     amqpUrl: amqp://localhost:5672
-    exchangeName: test-exchange
+    exchangeName: policy-exchange
     exchangeType: fanout
-    routerKey: test-key
-    queueName: test-queue
+    routerKey: key
 decision_logs:
   console: true
