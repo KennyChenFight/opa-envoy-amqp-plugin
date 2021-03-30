@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -290,13 +291,14 @@ func (p *envoyExtAuthzGrpcServer) updatePolicy(body []byte) error {
 		return err
 	}
 	if content["applicationName"] != os.Getenv("APPLICATION_NAME") {
-		logrus.WithField("call_service", content["call_service"]).Error("Not my policy.")
+		logrus.WithField("applicationName", content["applicationName"]).Error("Not my policy.")
 		return nil
 	}
 
 	client := http.DefaultClient
-	requestBody := bytes.NewBufferString(content["raw"])
-	req, err := http.NewRequest(http.MethodPut, "http://localhost:8181/v1/policies/authz", requestBody)
+	requestBody := bytes.NewBufferString(content["content"])
+	// for istio
+	req, err := http.NewRequest(http.MethodPut, "http://localhost:8181/v1/policies/%2Fpolicy%2Fpolicy.rego", requestBody)
 	if err != nil {
 		return err
 	}
@@ -306,7 +308,8 @@ func (p *envoyExtAuthzGrpcServer) updatePolicy(body []byte) error {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("fail update policy: %d", res.StatusCode)
+		body, _ := ioutil.ReadAll(res.Body)
+		return fmt.Errorf("fail update policy: statusCode:%d resp:%s", res.StatusCode, string(body))
 	}
 	return nil
 }
