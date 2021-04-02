@@ -290,14 +290,13 @@ func (p *envoyExtAuthzGrpcServer) updatePolicy(body []byte) error {
 	if err := json.Unmarshal(body, &content); err != nil {
 		return err
 	}
-	if content["applicationName"] != os.Getenv("APPLICATION_NAME") {
-		logrus.WithField("applicationName", content["applicationName"]).Error("Not my policy.")
+	if !strings.Contains(os.Getenv("APPLICATION_NAME"), content["applicationName"]) {
+		logrus.WithFields(logrus.Fields{"messageApplicationName": content["applicationName"], "envApplicationName": os.Getenv("APPLICATION_NAME")}).Error("Not my policy.")
 		return nil
 	}
 
 	client := http.DefaultClient
 	requestBody := bytes.NewBufferString(content["content"])
-	// for istio
 	req, err := http.NewRequest(http.MethodPut, "http://localhost:8181/v1/policies/%2Fpolicy%2Fpolicy.rego", requestBody)
 	if err != nil {
 		return err
@@ -311,6 +310,21 @@ func (p *envoyExtAuthzGrpcServer) updatePolicy(body []byte) error {
 		body, _ := ioutil.ReadAll(res.Body)
 		return fmt.Errorf("fail update policy: statusCode:%d resp:%s", res.StatusCode, string(body))
 	}
+
+	req, err = http.NewRequest(http.MethodGet, "http://localhost:8181/v1/policies/%2Fpolicy%2Fpolicy.rego", nil)
+	if err != nil {
+		return err
+	}
+	res, err = client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	body, _ = ioutil.ReadAll(res.Body)
+	fmt.Println("fuck:", string(body))
+	fmt.Println("fuck2:", res.StatusCode)
+
 	return nil
 }
 
