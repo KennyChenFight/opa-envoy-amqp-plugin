@@ -226,6 +226,14 @@ func (p *envoyExtAuthzGrpcServer) Start(ctx context.Context) error {
 	p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateNotReady})
 	go p.listen()
 	go p.consume()
+	go func() {
+		time.Sleep(10 * time.Second)
+		if err := p.getAndUpdateLatestPolicy(); err != nil {
+			logrus.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("getAndUpdateLatestPolicy fail.")
+		}
+	}()
 	return nil
 }
 
@@ -471,6 +479,38 @@ func (p *envoyExtAuthzGrpcServer) log(ctx context.Context, input interface{}, re
 	}
 
 	return decisionlog.LogDecision(ctx, p.manager, info, result, err)
+}
+
+func (p *envoyExtAuthzGrpcServer) getAndUpdateLatestPolicy() error {
+	if os.Getenv("APPLICATION_NAME") == "" {
+		return errors.New("APPLICATION_NAME env can not be empty string")
+	}
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://policy-register/v1/application/policies/%s", os.Getenv("APPLICATION_NAME")), nil)
+	if err != nil {
+		return err
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	logrus.WithFields(logrus.Fields{
+		"response statusCode": res.StatusCode,
+	}).Info("getAndUpdateLatestPolicy response statusCode.")
+	if res.StatusCode == http.StatusOK {
+		b, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return err
+		}
+		logrus.WithFields(logrus.Fields{
+			"response body": string(b),
+		}).Info("getAndUpdateLatestPolicy response body.")
+		return p.updatePolicy(b)
+	} else if res.StatusCode == http.StatusBadRequest {
+		logrus.Info("getAndUpdateLatestPolicy can not find forward")
+		return errors.New("can not find forward")
+	}
+	return nil
 }
 
 func stringPathToDataRef(s string) (r ast.Ref) {
